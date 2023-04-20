@@ -2,21 +2,35 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-public enum EnemyState{Idle, Patrol, Attack, Die}
+
+public enum EnemyState
+{
+    Idle,
+    Patrol,
+    Attack,
+    Die
+}
+
 public class EnemyController : MonoBehaviour
 {
     private EnemyState _enemyState = EnemyState.Idle;
-    
+
     public Transform[] patrolPoints;
     private int _currentWaypoint = 0;
     private float _interpolation = 0;
     public float speed = 0.5f;
     
     private Animator anim;
-    
+
     public GameObject EnemyParts;
-    void Start()
+    private GameManager _gameManager;
+    public int health = 100;
+    public int damage = 1;
+
+    private void Start()
     {
+        _gameManager = FindObjectOfType<GameManager>();
+
         EnemyParts.SetActive(false);
         anim = GetComponent<Animator>();
         _enemyState = EnemyState.Patrol;
@@ -28,13 +42,13 @@ public class EnemyController : MonoBehaviour
         {
             case EnemyState.Idle:
                 //wait
-            break;
+                break;
             case EnemyState.Patrol:
                 Patrol();
                 break;
             case EnemyState.Attack:
                 //attack
-            break;
+                break;
             case EnemyState.Die:
                 //die
                 EnemyParts.transform.position = transform.position;
@@ -50,7 +64,7 @@ public class EnemyController : MonoBehaviour
         int numPos = patrolPoints.Length;
         Vector2 posA = patrolPoints[_currentWaypoint % numPos].position;
         Vector2 posB = patrolPoints[(_currentWaypoint + 1) % numPos].position;
-        
+
         _interpolation += speed * Time.deltaTime;
         transform.position = Vector2.Lerp(posA, posB, _interpolation);
         if (_interpolation >= 1f)
@@ -58,33 +72,43 @@ public class EnemyController : MonoBehaviour
             _interpolation = 0;
             _currentWaypoint++;
         }
+
         anim.SetFloat("Speed", speed);
     }
 
-    private void OnTriggerEnter2D(Collider2D col)
+    public void AttackMode()
     {
-        if (col.CompareTag("Player") && _enemyState != EnemyState.Die)
+        if (_enemyState != EnemyState.Die)
         {
             _enemyState = EnemyState.Attack;
             anim.SetBool("Attacking", true);
         }
     }
-    private void OnTriggerExit2D(Collider2D other)
+
+    public void PatrolMode()
     {
         if (_enemyState != EnemyState.Die)
         {
             _enemyState = EnemyState.Patrol;
             anim.SetBool("Attacking", false);
         }
-        
+    }
+
+    public void Damage(int _damage)
+    {
+        health -= _damage;
+        if (health <= 0)
+        {
+            _enemyState = EnemyState.Die;
+            _gameManager.AddScore(1);
+        }
     }
 
     private void OnCollisionEnter2D(Collision2D col)
     {
         if (col.gameObject.CompareTag("Player"))
         {
-            _enemyState = EnemyState.Die;
-           
+            _gameManager.AddHealth(-damage);
         }
     }
 }
